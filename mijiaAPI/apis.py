@@ -278,6 +278,100 @@ class mijiaAPI():
         self._init_session()
         return self.auth_data
 
+    def QRlogin_generate(self) -> "tuple[dict, requests.Session] | None":
+        """
+        生成二维码登录数据
+
+        从小米服务获取二维码登录所需的链接和参数。
+        如果已有有效Token并成功刷新，返回 None 表示无需登录。
+
+        参数:
+            无
+
+        返回值:
+            tuple[dict, requests.Session] | None: 成功时返回 (login_data, session)，
+            其中 login_data 包含 lp（轮询地址）、loginUrl（二维码内容）、qr（二维码图片链接）；
+            如果Token有效且刷新成功则返回 None
+
+        异常:
+            LoginError: 当服务器返回错误时抛出
+        """
+        location_data = self._get_location()
+        if location_data.get("code", -1) == 0 and location_data.get("message", "") == "刷新Token成功":
+            self._save_auth_data()
+            self._init_session()
+            logger.info("刷新Token成功，无需登录")
+            return None
+
+        location_data.update({
+            "theme": "",
+            "bizDeviceType": "",
+            "_hasLogo": "false",
+            "_qrsize": "240",
+            "_dc": str(int(time.time() * 1000)),
+        })
+        url = self.login_url + "?" + parse.urlencode(location_data)
+        headers = {
+            "User-Agent": self.user_agent,
+            "Accept-Encoding": "gzip",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Connection": "keep-alive",
+        }
+        login_ret = requests.get(url, headers=headers)
+        login_data = self._handle_ret(login_ret)
+        self._print_qr(login_data["loginUrl"])
+        print(f"也可以访问链接查看二维码图片: {login_data['qr']}")
+
+        session = requests.Session()
+        session.headers.update(headers)
+        return login_data, session
+
+    def QRlogin_poll(self, login_data: dict, session: requests.Session = None) -> dict:
+        """
+        轮询等待扫码登录
+
+        使用从 QRlogin_generate 获取的登录数据，轮询等待用户扫码并处理登录结果。
+
+        参数:
+            login_data (dict): QRlogin_generate 返回的登录数据，必须包含 lp（轮询地址）字段
+            session (requests.Session, optional): QRlogin_generate 返回的会话对象，
+                  不传则自动创建新会话
+
+        返回值:
+            dict: 包含认证信息的字典，包括以下关键字段: ["psecurity", "nonce", "ssecurity", "passToken", "userId", "cUserId", "serviceToken", "expireTime", ...]
+
+        异常:
+            LoginError: 当登录超时或服务器返回错误时抛出
+        """
+        if session is None:
+            session = requests.Session()
+            session.headers.update({
+                "User-Agent": self.user_agent,
+                "Accept-Encoding": "gzip",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Connection": "keep-alive",
+            })
+
+        try:
+            lp_ret = session.get(login_data["lp"], timeout=120)
+            lp_data = self._handle_ret(lp_ret)
+        except requests.exceptions.Timeout:
+            raise LoginError(-1, "超时，请重试")
+
+        auth_keys = ["psecurity", "nonce", "ssecurity", "passToken", "userId", "cUserId"]
+        for key in auth_keys:
+            self.auth_data[key] = lp_data[key]
+        callback_url = lp_data["location"]
+        session.get(callback_url)
+        cookies = session.cookies.get_dict()
+        self.auth_data.update(cookies)
+        self.auth_data.update({
+            "expireTime": int((datetime.now() + timedelta(days=30)).timestamp() * 1000),
+        })
+        self._save_auth_data()
+        logger.info("登录成功")
+        self._init_session()
+        return self.auth_data
 
     def _request(self, uri: str, data: dict, refresh_token: bool = True) -> dict:
         logger.debug(f"请求 URI: {uri}，数据: {data}")

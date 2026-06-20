@@ -201,7 +201,7 @@ def parse_args(args):
 
     login = subparsers.add_parser(
         'login',
-        help="登录管理：查看状态、登录、强制重新登录",
+        help="登录管理：查看状态、登录、强制重新登录、分步登录",
     )
     login.set_defaults(func='login')
     login.add_argument(
@@ -214,6 +214,22 @@ def parse_args(args):
         '-f', '--force',
         action='store_true',
         help="强制重新登录（忽略现有Token）",
+    )
+    login.add_argument(
+        '-g', '--generate',
+        action='store_true',
+        help="仅生成二维码登录数据并保存到状态文件，不执行轮询",
+    )
+    login.add_argument(
+        '--poll',
+        action='store_true',
+        help="从状态文件读取数据并轮询等待扫码登录",
+    )
+    login.add_argument(
+        '--state',
+        type=Path,
+        default=None,
+        help="登录状态文件路径，默认保存在认证文件同目录下的 <auth>.login_state.json",
     )
 
     return parser.parse_args(args)
@@ -401,6 +417,44 @@ def handle_login(args):
     auth_path = args.auth_path
     if Path(auth_path).is_dir():
         auth_path = auth_path / "auth.json"
+
+    state_path = args.state
+    if state_path is None:
+        state_path = auth_path.with_suffix(".login_state.json")
+
+    if args.generate:
+        if auth_path.exists():
+            auth_path.unlink(missing_ok=True)
+        api = mijiaAPI(auth_data_path=auth_path)
+        result = api.QRlogin_generate()
+        if result is None:
+            print("Token有效，无需重新生成")
+            return
+        login_data, _session = result
+        state = {"login_data": login_data}
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(state_path, "w") as f:
+            json.dump(state, f, indent=2, ensure_ascii=False)
+        print(f"登录状态已保存到: {state_path}")
+        return
+
+    if args.poll:
+        if not state_path.exists():
+            print(f"错误: 未找到登录状态文件 {state_path}")
+            print("请先运行 `mijiaAPI login --generate` 生成登录数据")
+            sys.exit(1)
+        with open(state_path) as f:
+            state = json.load(f)
+        login_data = state["login_data"]
+        api = mijiaAPI(auth_data_path=auth_path)
+        try:
+            api.QRlogin_poll(login_data)
+            print("登录成功")
+            state_path.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"登录失败: {e}")
+            sys.exit(1)
+        return
 
     if args.force:
         if auth_path.exists():

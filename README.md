@@ -476,13 +476,16 @@ options:
 ```
 
 ```
-usage: mijiaAPI login [-h] [-p AUTH_PATH] [-f]
+usage: mijiaAPI login [-h] [-p AUTH_PATH] [-f] [-g] [--poll] [--state STATE]
 
 options:
   -h, --help            show this help message and exit
   -p, --auth_path AUTH_PATH
                         认证文件保存路径，默认保存在 ~/.config/mijia-api/auth.json
   -f, --force           强制重新登录（忽略现有Token）
+  -g, --generate        仅生成二维码登录数据并保存到状态文件，不执行轮询
+  --poll                从状态文件读取数据并轮询等待扫码登录
+  --state STATE         登录状态文件路径，默认保存在认证文件同目录下的 <auth>.login_state.json
 ```
 
 #### 获取设备属性
@@ -518,6 +521,12 @@ mijiaAPI set --dev_name "卧室台灯" --prop_name "on" --value True
 mijiaAPI login                      # 查看登录状态
 mijiaAPI login -f                   # 强制重新登录
 mijiaAPI login -p /path/auth.json   # 指定认证文件路径
+
+# 分步登录（生成二维码和轮询分离）
+mijiaAPI login -g                   # 仅生成二维码，保存状态到 auth.json.login_state.json
+mijiaAPI login -g --state /tmp/qr_state.json  # 指定状态文件路径
+mijiaAPI login --poll               # 从默认状态文件轮询等待扫码
+mijiaAPI login --poll --state /tmp/qr_state.json  # 从指定状态文件轮询
 
 # 列出所有设备（首先需要这个来获取设备名称）
 mijiaAPI -l
