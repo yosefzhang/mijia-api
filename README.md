@@ -161,6 +161,47 @@ for item in result:
     print(f"时间: {item['time']}, 数值: {item['value']}")
 ```
 
+#### 7. 小爱音箱对话记录
+
+获取小爱音箱的最近对话记录，包括用户query和小爱回答。
+
+**注意：此功能需要安装额外的依赖**
+
+```bash
+pip install miservice aiohttp
+# 或者安装完整版本
+pip install mijiaAPI[conversations]
+```
+
+```python
+from mijiaAPI import mijiaAPI
+
+api = mijiaAPI()
+api.login()
+
+# 通过音箱名称获取对话记录
+conversations = api.get_xiaoai_conversations(speaker_name="小爱音箱")
+for conv in conversations:
+    print(f"{conv['time']}: {conv['query']} -> {conv['answer']}")
+
+# 通过设备ID获取对话记录
+conversations = api.get_xiaoai_conversations(device_id="123456789")
+
+# 指定返回条数
+conversations = api.get_xiaoai_conversations(speaker_name="小爱音箱", limit=5)
+
+# 获取JSON格式结果
+result = api.get_xiaoai_conversations_json(speaker_name="小爱音箱")
+if result["status"] == "ok":
+    for conv in result["conversations"]:
+        print(f"{conv['time']}: {conv['query']} -> {conv['answer']}")
+
+# 列出所有可用的小爱音箱设备
+devices = api.list_xiaoai_devices()
+for device in devices:
+    print(f"设备名称: {device['name']}, 硬件型号: {device['hardware']}")
+```
+
 ### 设备信息获取
 
 使用 `get_device_info()` 函数可从[米家规格平台](https://home.miot-spec.com/)在线获取设备属性和动作信息：
@@ -250,6 +291,7 @@ from mijiaAPI import (
     mijiaDevice,
     LoginError,
     DeviceNotFoundError,
+    MultipleDevicesFoundError,
     DeviceGetError,
     DeviceSetError,
     DeviceActionError,
@@ -343,15 +385,17 @@ usage: mijiaAPI [-h] [-v] [-p AUTH_PATH] [--list_homes] [-l]
                    [--list_scenes] [--list_consumable_items]
                    [--run_scene SCENE_ID/SCENE_NAME [SCENE_ID/SCENE_NAME ...]]
                    [--get_device_info DEVICE_MODEL]
-                   {run,get,set} ...
+                   {run,get,set,conversations,login} ...
 
-Mijia API CLI (v3.1.0)
+Mijia API CLI (v3.2.0)
 
 positional arguments:
-  {run,get,set}
+  {run,get,set,conversations,login}
     run                 使用自然语言描述你的需求，如果你有小爱音箱的话
     get                 获取设备属性
     set                 设置设备属性
+    conversations       获取小爱音箱对话记录
+    login               登录管理：查看状态、登录、强制重新登录
 
 options:
   -h, --help            show this help message and exit
@@ -413,6 +457,34 @@ options:
   --quiet               小爱音箱静默执行
 ```
 
+```
+usage: mijiaAPI conversations [-h] [-p AUTH_PATH]
+                                 [--speaker_name SPEAKER_NAME]
+                                 [--device_id DEVICE_ID] [--limit LIMIT]
+                                 [--list_devices]
+
+options:
+  -h, --help            show this help message and exit
+  -p, --auth_path AUTH_PATH
+                        认证文件保存路径，默认保存在 ~/.config/mijia-api/auth.json
+  --speaker_name SPEAKER_NAME
+                        小爱音箱名称，从米家APP中获取
+  --device_id DEVICE_ID
+                        设备ID，支持 deviceID 或 miotDID
+  --limit LIMIT         返回记录条数，默认 10，最大 100
+  --list_devices        列出所有可用的小爱音箱设备
+```
+
+```
+usage: mijiaAPI login [-h] [-p AUTH_PATH] [-f]
+
+options:
+  -h, --help            show this help message and exit
+  -p, --auth_path AUTH_PATH
+                        认证文件保存路径，默认保存在 ~/.config/mijia-api/auth.json
+  -f, --force           强制重新登录（忽略现有Token）
+```
+
 #### 获取设备属性
 
 ```bash
@@ -442,6 +514,11 @@ mijiaAPI set --dev_name "卧室台灯" --prop_name "on" --value True
 #### 常用命令示例
 
 ```bash
+# 登录管理
+mijiaAPI login                      # 查看登录状态
+mijiaAPI login -f                   # 强制重新登录
+mijiaAPI login -p /path/auth.json   # 指定认证文件路径
+
 # 列出所有设备（首先需要这个来获取设备名称）
 mijiaAPI -l
 
@@ -464,6 +541,13 @@ mijiaAPI --list_consumable_items
 mijiaAPI run "打开卧室台灯"
 mijiaAPI run "把亮度调到50%" --wifispeaker_name "卧室小爱"
 mijiaAPI run "关闭所有灯" --quiet
+
+# 列出所有小爱音箱设备
+mijiaAPI conversations --list_devices
+
+# 获取小爱音箱对话记录
+mijiaAPI conversations --speaker_name "小爱音箱"
+mijiaAPI conversations --device_id "123456789" --limit 5
 ```
 
 #### 直接使用 uvx（无需安装）
@@ -561,6 +645,7 @@ api.login()
 * [janzlan/mijia-api](https://gitee.com/janzlan/mijia-api/tree/master)
 * [米家 APP 网络请求的抓包、加解密与构造的代码笔记](https://imkero.net/posts/mihome-app-api/)
 * [al-one/hass-xiaomi-miot](https://github.com/al-one/hass-xiaomi-miot)
+* [yosefzhang/forward-to-xiaoai](https://github.com/yosefzhang/forward-to-xiaoai) - 对话记录获取功能参考
 
 ## 开源许可
 

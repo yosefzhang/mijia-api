@@ -1,19 +1,49 @@
 # Python-generated files
 __pycache__/
-*.py[oc]
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
 build/
 dist/
 wheels/
 *.egg-info
+*.egg
 
 # Virtual environments
 .venv
+venv/
+ENV/
 
-# data
+# Data
 .mijia-api-data/
+auth.json
 
-# vscode debug
+# IDE
 .vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
 
-# har files
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+
+# ruff
+.ruff_cache/
+
+# pre-commit
+.pre-commit-cache/
+
+# HAR files
 *.har

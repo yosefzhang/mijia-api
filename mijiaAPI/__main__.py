@@ -165,6 +165,57 @@ def parse_args(args):
         help="需要设定的属性值",
         required=True,
     )
+
+    conversations = subparsers.add_parser(
+        'conversations',
+        help="获取小爱音箱对话记录",
+    )
+    conversations.set_defaults(func='conversations')
+    conversations.add_argument(
+        '-p', '--auth_path',
+        type=Path,
+        default=Path.home() / ".config" / "mijia-api" / "auth.json",
+        help="认证文件保存路径，默认保存在 ~/.config/mijia-api/auth.json",
+    )
+    conversations.add_argument(
+        '--speaker_name',
+        type=str,
+        help="小爱音箱名称，从米家APP中获取",
+    )
+    conversations.add_argument(
+        '--device_id',
+        type=str,
+        help="设备ID，支持 deviceID 或 miotDID",
+    )
+    conversations.add_argument(
+        '--limit',
+        type=int,
+        default=10,
+        help="返回记录条数，默认 10，最大 100",
+    )
+    conversations.add_argument(
+        '--list_devices',
+        action='store_true',
+        help="列出所有可用的小爱音箱设备",
+    )
+
+    login = subparsers.add_parser(
+        'login',
+        help="登录管理：查看状态、登录、强制重新登录",
+    )
+    login.set_defaults(func='login')
+    login.add_argument(
+        '-p', '--auth_path',
+        type=Path,
+        default=Path.home() / ".config" / "mijia-api" / "auth.json",
+        help="认证文件保存路径，默认保存在 ~/.config/mijia-api/auth.json",
+    )
+    login.add_argument(
+        '-f', '--force',
+        action='store_true',
+        help="强制重新登录（忽略现有Token）",
+    )
+
     return parser.parse_args(args)
 
 def init_api(auth_path: Path) -> mijiaAPI:
@@ -297,6 +348,93 @@ def set(args):
         return
     print(f"{device.name} ({device.did}) 的 {args.prop_name} 值已设置为 {args.value}")
 
+def handle_conversations(args, api: mijiaAPI):
+    """处理小爱音箱对话记录获取命令"""
+    try:
+        if args.list_devices:
+            devices = api.list_xiaoai_devices()
+            print("小爱音箱设备列表:")
+            for device in devices:
+                print(f"  - {device.get('name', '未知')}\n"
+                      f"    deviceID: {device.get('deviceID', '未知')}\n"
+                      f"    miotDID: {device.get('miotDID', '未知')}\n"
+                      f"    硬件型号: {device.get('hardware', '未知')}")
+            return
+
+        if not args.speaker_name and not args.device_id:
+            print("错误: 请指定 --speaker_name 或 --device_id 参数")
+            print("使用 --list_devices 查看可用设备列表")
+            sys.exit(1)
+
+        result = api.get_xiaoai_conversations_json(
+            speaker_name=args.speaker_name,
+            device_id=args.device_id,
+            limit=args.limit,
+        )
+
+        if result["status"] == "ok":
+            conversations = result["conversations"]
+            if not conversations:
+                print("未找到对话记录")
+                return
+
+            print(f"找到 {len(conversations)} 条对话记录:")
+            for i, conv in enumerate(conversations, 1):
+                print(f"\n{i}. [{conv['time']}]")
+                print(f"   用户: {conv['query']}")
+                print(f"   小爱: {conv['answer']}")
+        else:
+            print(f"错误: {result.get('message', '未知错误')}")
+            sys.exit(1)
+
+    except ImportError as e:
+        print(f"错误: 缺少依赖 - {e}")
+        print("请安装所需依赖: pip install miservice aiohttp")
+        sys.exit(1)
+    except Exception as e:
+        print(f"错误: {e}")
+        sys.exit(1)
+
+
+def handle_login(args):
+    """处理登录命令"""
+    auth_path = args.auth_path
+    if Path(auth_path).is_dir():
+        auth_path = auth_path / "auth.json"
+
+    if args.force:
+        if auth_path.exists():
+            auth_path.unlink(missing_ok=True)
+            print("已删除旧的认证文件")
+        api = mijiaAPI(auth_data_path=auth_path)
+        api.login()
+        print("登录成功")
+        return
+
+    if not auth_path.exists():
+        print("未找到认证文件，需要登录")
+        api = mijiaAPI(auth_data_path=auth_path)
+        api.login()
+        print("登录成功")
+        return
+
+    api = mijiaAPI(auth_data_path=auth_path)
+    if api.available:
+        print("已登录")
+        print(f"  认证文件: {auth_path}")
+        print(f"  用户ID: {api.auth_data.get('userId', '未知')}")
+    else:
+        print("Token已过期，正在重新登录...")
+        try:
+            api._refresh_token()
+            print("刷新Token成功")
+        except Exception:
+            print("刷新Token失败，需要重新登录")
+            api = mijiaAPI(auth_data_path=auth_path)
+            api.login()
+            print("登录成功")
+
+
 def main(args):
     args = parse_args(args)
 
@@ -314,6 +452,10 @@ def main(args):
             args.list_consumable_items or
             args.run_scene or
             hasattr(args, 'func') and args.func is not None):
+        return
+
+    if hasattr(args, 'func') and args.func == 'login':
+        handle_login(args)
         return
 
     api = init_api(args.auth_path)
@@ -351,6 +493,8 @@ def main(args):
             else:
                 wifispeaker = mijiaDevice(api, dev_name=args.wifispeaker_name)
             wifispeaker.run_action('execute-text-directive', _in=[args.prompt, 1 if args.quiet else 0])
+        if args.func == 'conversations':
+            handle_conversations(args, api)
 
 def cli():
     main(sys.argv[1:])

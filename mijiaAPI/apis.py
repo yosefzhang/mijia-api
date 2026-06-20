@@ -816,3 +816,149 @@ class mijiaAPI():
         if isinstance(data, dict) and len(ret_data) == 1:
             return ret_data[0]
         return ret_data
+
+    def get_xiaoai_conversations(
+        self,
+        speaker_name: Optional[str] = None,
+        device_id: Optional[str] = None,
+        limit: int = 10,
+    ) -> list:
+        """
+        获取小爱音箱对话记录
+
+        获取指定小爱音箱的最近对话记录，包括用户query和小爱回答。
+
+        参数:
+            speaker_name (Optional[str]): 音箱名称，从米家APP中获取。
+                - 与 device_id 二选一
+                - 如果两者都提供，优先使用 device_id
+            device_id (Optional[str]): 设备ID，从 get_devices_list() 获取。
+                - 与 speaker_name 二选一
+                - 支持 deviceID 或 miotDID
+            limit (int): 返回记录条数，默认 10，最大 100
+
+        返回值:
+            list: 对话记录列表，每个元素为一个dict，包含以下字段：
+                - timestamp_ms (int): 对话时间戳（毫秒）
+                - time (str): 格式化的时间字符串，格式为 "YYYY-MM-DD HH:MM:SS"
+                - query (str): 用户的语音指令
+                - answer (str): 小爱的回答
+
+        异常:
+            ImportError: 当缺少 miservice 或 aiohttp 依赖时
+            RuntimeError: 当设备未找到或登录失败时
+            ValueError: 当参数无效时
+
+        使用示例:
+            >>> from mijiaAPI import mijiaAPI
+            >>> api = mijiaAPI()
+            >>> api.login()
+            >>> 
+            >>> # 通过音箱名称获取对话记录
+            >>> conversations = api.get_xiaoai_conversations(speaker_name="小爱音箱")
+            >>> for conv in conversations:
+            ...     print(f"{conv['time']}: {conv['query']} -> {conv['answer']}")
+            >>> 
+            >>> # 通过设备ID获取对话记录
+            >>> conversations = api.get_xiaoai_conversations(device_id="123456789")
+            >>> 
+            >>> # 指定返回条数
+            >>> conversations = api.get_xiaoai_conversations(speaker_name="小爱音箱", limit=5)
+
+        注意:
+            - 此功能需要安装额外的依赖: pip install miservice aiohttp
+            - 首次使用需要通过米家APP登录获取认证数据
+        """
+        from .conversations import get_conversations_sync
+
+        return get_conversations_sync(
+            self.auth_data,
+            speaker_name=speaker_name,
+            device_id=device_id,
+            limit=limit,
+        )
+
+    def get_xiaoai_conversations_json(
+        self,
+        speaker_name: Optional[str] = None,
+        device_id: Optional[str] = None,
+        limit: int = 10,
+    ) -> dict:
+        """
+        获取小爱音箱对话记录（JSON格式）
+
+        获取指定小爱音箱的最近对话记录，返回JSON格式结果。
+
+        参数:
+            speaker_name (Optional[str]): 音箱名称，从米家APP中获取。
+                - 与 device_id 二选一
+                - 如果两者都提供，优先使用 device_id
+            device_id (Optional[str]): 设备ID，从 get_devices_list() 获取。
+                - 与 speaker_name 二选一
+                - 支持 deviceID 或 miotDID
+            limit (int): 返回记录条数，默认 10，最大 100
+
+        返回值:
+            dict: 包含以下字段：
+                - status (str): 状态，"ok" 表示成功，"error" 表示失败
+                - conversations (list): 对话记录列表
+                - message (str): 错误信息（仅在 status 为 "error" 时存在）
+
+        异常:
+            无（异常会被捕获并返回到结果中）
+
+        使用示例:
+            >>> from mijiaAPI import mijiaAPI
+            >>> api = mijiaAPI()
+            >>> api.login()
+            >>> 
+            >>> result = api.get_xiaoai_conversations_json(speaker_name="小爱音箱")
+            >>> if result["status"] == "ok":
+            ...     for conv in result["conversations"]:
+            ...         print(f"{conv['time']}: {conv['query']} -> {conv['answer']}")
+            >>> else:
+            ...     print(f"错误: {result['message']}")
+        """
+        from .conversations import get_conversations_json_sync
+
+        return get_conversations_json_sync(
+            self.auth_data,
+            speaker_name=speaker_name,
+            device_id=device_id,
+            limit=limit,
+        )
+
+    def list_xiaoai_devices(self) -> list:
+        """
+        列出所有可用的小爱音箱设备
+
+        获取当前账号下所有小爱音箱设备的列表。
+
+        返回值:
+            list: 设备列表，每个元素为一个dict，包含以下字段：
+                - deviceID (str): MINA设备ID
+                - miotDID (str): MIoT设备ID
+                - name (str): 设备名称
+                - hardware (str): 硬件型号
+
+        异常:
+            ImportError: 当缺少 miservice 或 aiohttp 依赖时
+            RuntimeError: 当登录失败时
+
+        使用示例:
+            >>> from mijiaAPI import mijiaAPI
+            >>> api = mijiaAPI()
+            >>> api.login()
+            >>> 
+            >>> devices = api.list_xiaoai_devices()
+            >>> for device in devices:
+            ...     print(f"设备名称: {device['name']}, 硬件型号: {device['hardware']}")
+        """
+        from .conversations import XiaoAiConversations
+        import asyncio
+
+        async def _get_devices():
+            conv = XiaoAiConversations(self.auth_data)
+            return await conv.get_devices_list()
+
+        return asyncio.run(_get_devices())
