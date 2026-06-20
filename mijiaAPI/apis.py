@@ -369,6 +369,8 @@ class mijiaAPI():
         self.auth_data.update({
             "expireTime": int((datetime.now() + timedelta(days=30)).timestamp() * 1000),
         })
+        self.deviceId
+        self.pass_o
         self._save_auth_data()
         logger.info("登录成功")
         self._init_session()
