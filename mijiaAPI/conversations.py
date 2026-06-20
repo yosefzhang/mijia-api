@@ -188,12 +188,14 @@ def parse_conversations(raw_response: Dict[str, Any]) -> List[Dict[str, Any]]:
             )
         
         ts_ms = rec.get("time", 0)
-        conversations.append({
+        conv = dict(rec)
+        conv.update({
             "timestamp_ms": ts_ms,
             "time": fmt_time(ts_ms),
             "query": query,
             "answer": answer_text,
         })
+        conversations.append(conv)
     
     return conversations
 
