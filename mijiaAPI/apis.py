@@ -278,7 +278,7 @@ class mijiaAPI():
         self._init_session()
         return self.auth_data
 
-    def QRlogin_generate(self) -> "tuple[dict, requests.Session] | None":
+    def QRlogin_generate(self, quiet: bool = True) -> "tuple[dict, requests.Session] | None":
         """
         生成二维码登录数据
 
@@ -286,7 +286,7 @@ class mijiaAPI():
         如果已有有效Token并成功刷新，返回 None 表示无需登录。
 
         参数:
-            无
+            quiet (bool): 静默模式，默认 True，跳过终端二维码打印
 
         返回值:
             tuple[dict, requests.Session] | None: 成功时返回 (login_data, session)，
@@ -319,8 +319,9 @@ class mijiaAPI():
         }
         login_ret = requests.get(url, headers=headers)
         login_data = self._handle_ret(login_ret)
-        self._print_qr(login_data["loginUrl"])
-        print(f"也可以访问链接查看二维码图片: {login_data['qr']}")
+        if not quiet:
+            self._print_qr(login_data["loginUrl"])
+            print(f"也可以访问链接查看二维码图片: {login_data['qr']}")
 
         session = requests.Session()
         session.headers.update(headers)
