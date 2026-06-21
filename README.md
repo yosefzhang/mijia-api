@@ -385,17 +385,18 @@ usage: mijiaAPI [-h] [-v] [-p AUTH_PATH] [--list_homes] [-l]
                    [--list_scenes] [--list_consumable_items]
                    [--run_scene SCENE_ID/SCENE_NAME [SCENE_ID/SCENE_NAME ...]]
                    [--get_device_info DEVICE_MODEL]
-                   {run,get,set,conversations,login} ...
+                   {run,get,set,conversations,login,play-text} ...
 
 Mijia API CLI (v3.2.0)
 
 positional arguments:
-  {run,get,set,conversations,login}
+  {run,get,set,conversations,login,play-text}
     run                 使用自然语言描述你的需求，如果你有小爱音箱的话
     get                 获取设备属性
     set                 设置设备属性
     conversations       获取小爱音箱对话记录
     login               登录管理：查看状态、登录、强制重新登录
+    play-text           让小爱音箱朗读指定文本
 
 options:
   -h, --help            show this help message and exit
@@ -488,6 +489,17 @@ options:
   --state STATE         登录状态文件路径，默认保存在认证文件同目录下的 <auth>.login_state.json
 ```
 
+```
+usage: mijiaAPI play-text [-h] [-p AUTH_PATH] [--wifispeaker_name WIFISPEAKER_NAME] TEXT
+
+options:
+  -h, --help            show this help message and exit
+  -p, --auth_path AUTH_PATH
+                        认证文件保存路径，默认保存在 ~/.config/mijia-api/auth.json
+  --wifispeaker_name WIFISPEAKER_NAME
+                        指定小爱音箱名称，默认是获取到的第一个小爱音箱
+```
+
 #### 获取设备属性
 
 ```bash
@@ -550,6 +562,10 @@ mijiaAPI --list_consumable_items
 mijiaAPI run "打开卧室台灯"
 mijiaAPI run "把亮度调到50%" --wifispeaker_name "卧室小爱"
 mijiaAPI run "关闭所有灯" --quiet
+
+# 让小爱音箱朗读文本
+mijiaAPI play-text "你好，我是小爱同学"
+mijiaAPI play-text "晚安" --wifispeaker_name "卧室小爱"
 
 # 列出所有小爱音箱设备
 mijiaAPI conversations --list_devices

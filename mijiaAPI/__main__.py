@@ -104,6 +104,30 @@ def parse_args(args):
         help="小爱音箱静默执行",
     )
 
+    play_text = subparsers.add_parser(
+        'play-text',
+        help="让小爱音箱朗读指定文本",
+    )
+    play_text.set_defaults(func='play_text')
+    play_text.add_argument(
+        '-p', '--auth_path',
+        type=Path,
+        default=Path.home() / ".config" / "mijia-api" / "auth.json",
+        help="认证文件保存路径，默认保存在 ~/.config/mijia-api/auth.json",
+    )
+    play_text.add_argument(
+        'text',
+        type=str,
+        help="需要让小爱音箱朗读的文本内容",
+        metavar='TEXT',
+    )
+    play_text.add_argument(
+        '--wifispeaker_name',
+        type=str,
+        help="指定小爱音箱名称，默认是获取到的第一个小爱音箱",
+        default=None,
+    )
+
     get = subparsers.add_parser(
         'get',
         help="获取设备属性",
@@ -547,6 +571,20 @@ def main(args):
             else:
                 wifispeaker = mijiaDevice(api, dev_name=args.wifispeaker_name)
             wifispeaker.run_action('execute-text-directive', _in=[args.prompt, 1 if args.quiet else 0])
+        if args.func == 'play_text':
+            if device_mapping is None:
+                device_mapping = get_devices_list(api, verbose=False)
+            if args.wifispeaker_name is None:
+                wifispeaker = None
+                for device in device_mapping.values():
+                    if 'xiaomi.wifispeaker' in device['model']:
+                        wifispeaker = mijiaDevice(api, dev_name=device['name'])
+                        break
+                if wifispeaker is None:
+                    raise ValueError("未找到小爱音箱设备")
+            else:
+                wifispeaker = mijiaDevice(api, dev_name=args.wifispeaker_name)
+            wifispeaker.run_action('play-text', _in=[args.text])
         if args.func == 'conversations':
             handle_conversations(args, api)
 
