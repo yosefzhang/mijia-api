@@ -2,6 +2,16 @@
 
 本文档记录了项目的v1.3.7以来的重要变更。
 
+## [3.3.0](https://github.com/Do1e/mijia-api/compare/v3.2.0...v3.3.0) - 2026-06-21
+### new feature
+* 新增 `QRlogin_generate()` 和 `QRlogin_poll()` 公开方法，支持分步登录
+* 新增 `mijiaAPI login -g/--generate` 和 `--poll` CLI 参数，支持命令行分步登录
+* 新增 `mijiaAPI play-text` 子命令，让小爱音箱朗读指定文本
+* `QRlogin_generate()` 新增 `quiet` 参数（默认 True），抑制终端二维码打印
+### bugfix
+* 修复 `QRlogin_poll()` 分步登录后 `deviceId` 丢失的问题
+* 修复 `parse_conversations()` 丢失原始字段（如 `requestId`）的问题
+
 ## [3.2.0](https://github.com/Do1e/mijia-api/compare/v3.1.0...v3.2.0) - 2026-06-09
 ### improvement
 * 将 `--run` 参数重构为独立的 `run` 子命令，提升 CLI 结构一致性
